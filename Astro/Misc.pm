@@ -19,7 +19,7 @@ astronomical calculations.
 
 =head1 AUTHOR
 
-Chris Phillips  phillips@jive.nl
+Chris Phillips  Chris.Phillips@csiro.au
 
 =head1 FUNCTIONS
 

@@ -6,8 +6,10 @@
 	- Assuming radians not turns in kindist
 	- Forgot to export routines in Misc.pm
 	- Fixed spelling in PODs
+
 0.5  Nov 19 1999 - First CPAN release
 	- Added README and minor changes 
+
 0.51 Nov 17 2000
 	- Minor Changes
 	- Added j2gal routine
@@ -21,3 +23,8 @@
 	- Allow Bepoch to be set (via "global variable") for
 	  fk4fk5 routine.
 	- rad2turn and turn2rad change to accept array of values
+
+0.62 Apr 08 2003
+	- Dropped leading zeros on second fraction in time2hms
+	- Updated email/URLs etc
+	- Added J2000todate routine

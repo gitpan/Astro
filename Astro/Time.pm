@@ -25,7 +25,7 @@ angles.
 
 =head1 AUTHOR
 
-Chris Phillips  phillips@jive.nl
+Chris Phillips  Chris.Phillips@csiro.au
 
 =head1 FUNCTIONS
 
@@ -140,7 +140,7 @@ sub nint ($) {
    $strsep String separator (override for default $Astro::Time::StrSep)
 Note:
  The behavior can be modified by the following two variables:
-  $Astro::Time::ZeroStr   Minimum number of leading digits (zero padded 
+  $Astro::Time::StrZero   Minimum number of leading digits (zero padded 
                           if needed)
   $Astro::Time::StrSep    (Overridden by optional fourth argument)
     Deliminator used in string (Default ':')
@@ -509,7 +509,7 @@ sub time2hms ($$$) {
     $sign = '-';
     $angle = -$angle;
   } else {
-    $sign = '+';
+   $sign = '+';
   }
 
   my $wholeangle = (int $angle);
@@ -540,7 +540,8 @@ sub time2hms ($$$) {
   }
 
   if ($sig > 0) {
-    return($sign, $wholeangle, $min, "$wholesec.$secfract");
+    my $fmt = sprintf("%%d.%%0%dd", $sig);
+    return($sign, $wholeangle, $min, sprintf($fmt, $wholesec, $secfract));
   } else {
     return($sign, $wholeangle, $min, $wholesec);
   }

@@ -19,7 +19,7 @@ conversions, such as hour angle to elevation and J2000 to B1950.
 
 =head1 AUTHOR
 
-Chris Phillips  phillips@jive.nl
+Chris Phillips  Chris.Phillips@csiro.au
 
 =head1 FUNCTIONS
 
@@ -33,7 +33,7 @@ BEGIN {
   $VERSION = '1.21';
   @ISA = qw(Exporter);
 
-  @EXPORT      = qw( xy2azel azel2xy eqazel
+  @EXPORT      = qw( xy2azel azel2xy eqazel J2000todate
                      fk4fk5 fk5fk4 fk4gal galfk4 j2gal
                      coord_convert
                      haset_ewxy ewxy_tlos haset_azel azel_tlos
@@ -888,6 +888,75 @@ sub galfk4 ($$) {
     $eps0   - Mean obilquity of the ecliptic.
 
 =cut
+
+=item B<J2000todate>
+
+
+ ($DRA, $DDec) = J2000todate($JRA, $JDec, $mjd);
+ @date = J2000todate(@J2000, $mjd);
+
+ Converts an J2000 position date coordinate
+
+   $DRA,$DDec     Date coordinate (turns)
+   $JRA,$Dec      J2000 position (turns)
+   @date          Date coordinate (as a 3-vector)
+   @J2000         J2000 position (as a 3-vector)
+
+=cut
+
+# Untested
+sub J2000todate(@) {
+
+  my ($rect);
+  my (@J2000, @date); #  Position  vectors
+
+  my $mjd = pop @_;
+  if (@_==3) { # Rectangular coordinates passed
+    @J2000 = @_;
+    $rect = 1;
+  } elsif (@_==2) { # Sperical coordinates
+    @J2000 = pol2r($_[0],$_[1]); #  Spherical to Cartesian
+    $rect = 0;
+  } elsif (@_>3) {
+    croak "Too many arguments for Astro::Coord::J2000todate ";
+  } else {
+    croak "Not enough arguments for Astro::Coord::J2000todate ";
+  }
+
+  # compute the general precession matrix.
+  my @gp = precsn(JULIAN_DAY_J2000, $mjd+2400000.5);
+
+  # Determine ephemeris quantities
+  my ($deps, $dpsi);
+  my @nu = ();
+  my ($omega, $rma, $mlanom, $F, $D, $eps0) = ephem_vars($mjd+2400000.5);
+  ($deps, $dpsi, @nu) = nutate($omega, $F, $D, $rma, $mlanom, $eps0);
+
+  my @prcmat = ();
+  for (my $i=0 ; $i<3 ; $i++) {
+    for (my $j=0 ; $j<3 ; $j++) {
+      my $xx = 0.0;
+      for (my $k=0 ; $k<3 ; $k++) {
+	$xx = $xx + $gp[$i][$k] * $nu[$k][$j];
+      }
+      $prcmat[$i][$j] = $xx;
+    }
+  }
+
+  for (my $i=0 ; $i<3 ; $i++) {
+    $date[$i] = 0.0;
+    for (my $j=0 ; $j<3 ; $j++) {
+      $date[$i] += $prcmat[$i][$j] * $J2000[$j];
+    }
+  }
+
+  if ($rect) {
+    return @date;
+  } else {
+    #  Revert to spherical coordinates
+    return r2pol(@date);
+  }
+}
 
 sub ephem_vars ($) {
   my $epoch = shift;
