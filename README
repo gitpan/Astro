@@ -1,0 +1,73 @@
+Astro::	- Assorted astronomical routines
+
+Astro::Time, Astro::Coord and Astro::Misc provide a collection of useful
+astronomical routines written entirely in Perl (so no hassling about
+installing external libraries is required).
+
+The routines provided include various time conversions (dayno to day/month,
+local sidereal time, calendar to Modified Julian day) and coordinate
+transformations (J2000 to B1950, B1950 to Galactic, Az,El to Ha,Dec),
+string parsing (12:00:00 -> 0.5) as well as a number of astronomical tools
+(eg observed Galactic velocity to kinematic distance).
+
+*NOTE* These routines should probably NOT be considered high
+precision. I have tried as far as possible to compare the results with
+other libraries (mainly SLALIB), but I guarantee nothing. The results
+should probably be to better than an arcsec or so, and provide a great
+mechanism for planning observations and searching through catalogs
+but be wary. In particular the J2000 <-> B1950 conversion is different
+to the SLALIB conversion of around 0.2 arcsec.
+
+Please let me know of any bugs you find of if you have other routines you
+would like to contribute.
+
+Requirements:
+-------------
+
+Only perl. Developed using version 5.005_03 on Solaris and Linux.
+
+
+Where can I get it from?
+------------------------
+  http://www.perl.com/CPAN-local/modules/by-module/Astro/Astro-?.tar.gz
+  ftp://ftp.nfra.nl/pub/phillips/Astro-?.tar.gz
+
+Installation:
+------------
+
+ % perl Makefile.PL
+ % make
+ % make test
+ % make install
+
+Documentation:
+--------------
+
+Documentation is included in the three modules as POD. Man files should be
+created in the installation process.
+
+Changes:
+--------
+
+See the Changes file
+
+Author:
+-------
+
+Chris Phillips, Joint Institute for VLBI in Europe
+
+ phillips@jive.nfra.nl
+
+Acknowledgment:
+---------------
+
+ Simon Ellingsen wrote most of the routines in Coord.pm
+ A few of the routines are based in code from Edward King
+
+Copyright
+---------
+
+This module is copyright (C) 1999 Chris Phillips.  All rights
+reserved.  This program is free software; you can redistribute it
+and/or modify it under the same terms as Perl itself.
+

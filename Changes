@@ -1,0 +1,10 @@
+0.01 Oct 16 1999 - original version based on astro.pm
+0.02 Nov 10 1999 - Bug fixes, documentation updates and Misc.pm
+0.03 Nov 15 1999 - Bug fixes
+	- Order of returned parameters in mjd2dayno
+	- Calling order in coord_convert
+	- Assuming radians not turns in kindist
+	- Forgot to export routines in Misc.pm
+	- Fixed spelling in PODs
+0.5  Nov 19 1999 - First CPAN release
+	- Added README and minor changes 
