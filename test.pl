@@ -107,9 +107,6 @@ printf("gst:        MJD %.2f (dUT1=$dUT1) ==> GMST %s\n", $mjd,
        turn2str($gst,'H',0));
 
 $Astro::Time::StrSep = 'hms';
-$lmst = mjd2lst($mjd, $longitude, $dUT1);
-printf("mjd2lst:    MJD %.2f at %s ==> LMST %s\n", $mjd,
-       turn2str($longitude, 'D', 1, ':'), turn2str($lmst, 'H', 0));
 
 $lmst = cal2lst($day, $month, $year, $ut, $longitude);
 printf("cal2lst:    $day/$month/$year (%s) at %s ==> LMST %s\n",
@@ -121,6 +118,15 @@ printf("dayno2lst:  $dayno/$year (%s) at %s ==> LMST %s\n",
        turn2str($ut, 'H', 0), turn2str($longitude, 'D', 1, ':'),
        turn2str($lmst, 'H', 0));
 
+$lmst = mjd2lst($mjd, $longitude, $dUT1);
+printf("mjd2lst:    MJD %.6f at %s ==> LMST %s\n", $mjd,
+       turn2str($longitude, 'D', 1, ':'), turn2str($lmst, 'H', 2));
+
+$mjd = lst2mjd($lmst, $dayno, $year, $longitude);
+printf("lst2mjd:    LST %s on $dayno/$year \@ %s ==> MJD %.6f\n",
+       turn2str($lmst,'H',2,'hms'), turn2str($longitude,'D',0,':'),
+       $mjd);
+
 $Astro::Time::StrSep = ':';
 
 $ra = 0.5356;
@@ -131,11 +137,6 @@ printf("rise:       %s,%s at %s rise between %s - %s lst\n",
        turn2str($ra, 'H', 0), turn2str($dec, 'D', 0),
        turn2str($latitude, 'D', 0),
        turn2str($lst_rise, 'H', 0), turn2str($lst_set, 'H', 0));
-
-$mjd = lst2mjd($lmst, $dayno, $year, $longitude);
-printf("lst2mjd:    LST %s on $dayno/$year \@ %s ==> MJD %.2f\n",
-       turn2str($lmst,'H',0,'hms'), turn2str($longitude,'D',0,':'),
-       $mjd);
 
 $x = deg2turn(-15.585);
 $y = deg2turn(+11.507);

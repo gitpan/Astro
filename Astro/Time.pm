@@ -25,7 +25,7 @@ angles.
 
 =head1 AUTHOR
 
-Chris Phillips  Chris.Phillips@csiro.au
+Chris Phillips  phillips@jive.nl
 
 =head1 FUNCTIONS
 
@@ -36,7 +36,7 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.10';
+  $VERSION = '1.12';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
@@ -509,7 +509,7 @@ sub time2hms ($$$) {
     $sign = '-';
     $angle = -$angle;
   } else {
-   $sign = '+';
+    $sign = '+';
   }
 
   my $wholeangle = (int $angle);
@@ -540,8 +540,7 @@ sub time2hms ($$$) {
   }
 
   if ($sig > 0) {
-    my $fmt = sprintf("%%d.%%0%dd", $sig);
-    return($sign, $wholeangle, $min, sprintf($fmt, $wholesec, $secfract));
+    return($sign, $wholeangle, $min, "$wholesec.$secfract");
   } else {
     return($sign, $wholeangle, $min, $wholesec);
   }
@@ -1190,16 +1189,16 @@ sub lst2mjd($$$$;$) {
 
   my $SOLAR_TO_SIDEREAL = 1.002737909350795;
 
-  my ($day, $month) = dayno2cal($dayno, $year);
-  my $mjd = cal2mjd($day, $month, $year, 0.0);
+  my $mjd = dayno2mjd($dayno, $year, $dUT1);
 
   # Time in turns from passed lmst to lmst at the start of $dayno
   my $delay = $lmst-mjd2lst($mjd, $longitude);
+
   if ($delay < 0.0) {
-    $delay += 1.0/$SOLAR_TO_SIDEREAL;
+    $delay += 1.0;
   }
 
-  return($mjd + $delay);
+  return($mjd + $delay/$SOLAR_TO_SIDEREAL);
 }
 
 1;

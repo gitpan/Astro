@@ -6,3 +6,4 @@ Astro/Time.pm
 Astro/Coord.pm
 Astro/Misc.pm
 test.pl
+META.yml                                 Module meta-data (added by MakeMaker)

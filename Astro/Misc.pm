@@ -30,7 +30,7 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $Temp $parsecAU $au2km $G $c @ThompsonData);
-  $VERSION = '1.00';
+  $VERSION = '1.01';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( read_possm calc_U calc_Nl lum2spectral 
@@ -42,6 +42,7 @@ BEGIN {
   use POSIX qw( asin log10);
 
   use Astro::Time qw( $PI );
+  use Astro::Coord qw( fk5fk4 fk4gal );
 
 }
 
@@ -146,7 +147,9 @@ sub read_possm ($\%) {
 	last;
       }
     } else {
-      if (/Channel.*IF.*Frequency.*Velocity.*(Ampl|Real).*(Phase|Imag)/) {
+# 5/6/03 Minor change. No time to fix properly bugger
+#      if (/Channel.*IF.*Frequency.*Velocity.*(Ampl|Real).*(Phase|Imag)/) {
+      if (/Channel.*IF.*Polar.*Frequency.*Velocity.*(Ampl|Real).*(Phase|Imag)/) {
 	$eof = 0;
 	if ($1 eq 'Ampl') {
 	  $$hashref{TYPE} = 'A&P';
@@ -182,6 +185,7 @@ sub read_possm ($\%) {
       push(@{$$hashref{PHASE}},$4);
     } elsif (/\s*(\d+)\s+                          # Channel
 	     \d+\s+                                # IF
+	     \S+\s+                                # Polar
 	     (\d+\.\d*(?:[Ee][\-+]\d+)?)\s+        # Frequency
 	     ([-+]?\d+\.\d*(?:[Ee][\-+]\d+)?)\s+   # Velocity
 	     ([-+]?\d+\.\d*(?:[Ee][\-+]\d+)?)\s+   # Amplitude - Real
@@ -573,7 +577,7 @@ sub kindist ($$$$$) {
   $b = 0.0;
 
   if (($epoch eq 'J2000') || ($epoch eq 'J')) {
-    ($ra, $dec) = fk5dk4($ra, $dec);
+    ($ra, $dec) = fk5fk4($ra, $dec);
   }
   ($l, $b) = fk4gal($ra, $dec);
   $l *= 2.0*$PI;
@@ -599,7 +603,7 @@ sub kindist ($$$$$) {
     }
     $eps = abs($W - $sampW)/$W;
     if ($R > 5.0*$Ro) {
-      print STDERR "Could not find within limits.\n";
+      warn "Could not find within limits.\n";
       $eps = 0.0;
     }
   }
@@ -615,7 +619,7 @@ sub kindist ($$$$$) {
     }
     $eps = abs($W - $sampW)/$W;
     if ($R > 5.0*$Ro) {
-      print STDERR "Could not find within limits.\n";
+      warn "Could not find within limits.\n";
       $eps = 0.0;
     }
   }

@@ -30,7 +30,7 @@ BEGIN {
   use Exporter ();
   use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL 
 	       $bepoch );
-  $VERSION = '1.21';
+  $VERSION = '1.3';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( xy2azel azel2xy eqazel J2000todate
