@@ -29,8 +29,8 @@ Chris Phillips  phillips@jive.nl
 BEGIN {
   use Exporter ();
   use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL 
-               $PI $StrSep $StrZero );
-  $VERSION = '1.20';
+	       $bepoch );
+  $VERSION = '1.21';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( xy2azel azel2xy eqazel
@@ -40,7 +40,7 @@ BEGIN {
                      antenna_rise
                      );
   @EXPORT_OK   = qw ( pol2r r2pol fk4fk5r fk5fk4r fk4galr galfk4r
-                      ephem_vars nutate precsn );
+                      ephem_vars nutate precsn $bepoch );
   @EXPORT_FAIL = qw ( );
 
   use Carp;
@@ -48,6 +48,8 @@ BEGIN {
 
   use Astro::Time qw( $PI rad2turn turn2rad mjd2lst );
 }
+
+$bepoch = 1950.0;
 
 use constant JULIAN_DAY_J2000 => 2451545.0;
 use constant JULIAN_DAYS_IN_CENTURY => 36525.0;
@@ -334,7 +336,7 @@ sub fk4fk5 (@) {
 #
 #  Copyright (C) 1998 Rutherford Appleton Laboratory
 
-  my $bepoch = 1950.0; # Assumption, probably should be parameter
+
   my ($rect, $w, $i, $j);
   my (@r0, @a1, @v1, @v2); #  Position and position+velocity vectors
 
@@ -579,7 +581,6 @@ sub fk5fk4 (@) {
   $xd=$v2[3]+$a[3]*$rxyz-$wd*$x;
   $yd=$v2[4]+$a[4]*$rxyz-$wd*$y;
   $zd=$v2[5]+$a[5]*$rxyz-$wd*$z;
-
 
   my @r;
   if ($rect) {

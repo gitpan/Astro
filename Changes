@@ -16,3 +16,8 @@
 	- Replace J2000 <-> B1950 routines with copies of SLALIB routines
 	- Updated calc_Nl (and bug fix)
 	- Replace Panagia spectral type values by Thompson
+
+0.61 Sep 26 2002
+	- Allow Bepoch to be set (via "global variable") for
+	  fk4fk5 routine.
+	- rad2turn and turn2rad change to accept array of values
