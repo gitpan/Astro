@@ -25,7 +25,7 @@ angles.
 
 =head1 AUTHOR
 
-Chris Phillips  phillips@jive.nfra.nl
+Chris Phillips  phillips@jive.nl
 
 =head1 FUNCTIONS
 
@@ -312,8 +312,12 @@ sub rad2str ($$$;$) {
 =cut
 
 sub str2turn ($$) {
-
   my($str,$mode) = @_;
+
+  if (! defined $str) {
+    carp 'Use of uninitialized value at';
+    return undef;
+  }
   $mode = uc $mode;
   if (($mode ne "H") && ($mode ne "D")) {
     carp 'str2turn: $mode must equal "H" or "D"';
@@ -946,9 +950,9 @@ sub mjd2jd($) {
 
 =item B<gst>
 
-  $gst = gmst($mjd);
-  $gmst = gmst($mjd, $dUT1);
-  $gtst = gmst($mjd, $dUT1, $eqenx);
+  $gst  = gst($mjd);
+  $gmst = gst($mjd, $dUT1);
+  $gtst = gst($mjd, $dUT1, $eqenx);
 
  Converts a modified Julian day number to Greenwich sidereal time
    $mjd     modified Julian day (JD-2400000.5)

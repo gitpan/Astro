@@ -19,7 +19,7 @@ astronomical calculations.
 
 =head1 AUTHOR
 
-Chris Phillips  phillips@jive.nfra.nl
+Chris Phillips  phillips@jive.nl
 
 =head1 FUNCTIONS
 
@@ -29,20 +29,20 @@ Chris Phillips  phillips@jive.nfra.nl
 BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
-              $Temp $parsecAU $au2km $G $c );
+              $Temp $parsecAU $au2km $G $c @ThompsonData);
   $VERSION = '1.00';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( read_possm calc_U calc_Nl lum2spectral 
-                     Nl2spectral kindist );
-  @EXPORT_OK   = qw ( $Temp read_lovas );
-  @EXPORT_FAIL = qw ( a model_1 model_2 );
+                     Nl2spectral kindist);
+  @EXPORT_OK   = qw ( $Temp read_lovas a model_1 model_2 @ThompsonData $c);
+  @EXPORT_FAIL = qw ( );
 
   use Carp;
-  use POSIX qw( asin );
+  use POSIX qw( asin log10);
 
   use Astro::Time qw( $PI );
-  use Astro::Coord qw( coord_convert );
+
 }
 
 $parsecAU = 206265;        # The length of one parsec in AU
@@ -51,6 +51,15 @@ $G = 6.67e-11;             # Gravitational constant
 $c = 2.99792458e5;         # speed of light in km/s
 
 $Temp = 1e4;  # Electron temperature
+
+# Load up the data from Thompson 1984 ApJ 283 165 Table 1
+use constant SPEC => 0;
+use constant LUM => 2;
+use constant NL => 5;
+@ThompsonData = ();
+while (<DATA>) {
+  push @ThompsonData, [split];
+}
 
 =item B<read_possm>
 
@@ -61,7 +70,7 @@ $Temp = 1e4;  # Electron temperature
  plot is returned in a hash. Some of the header values are returned
  as scalar values while the actual plot values are returned as
  references to arrays. The scalar values returned are:
-   SOURCE, DATE, BANDWIDTH, TYPE (='A&P'||'R&I')
+   SOURCE, DATE, TIME, BANDWIDTH, TYPE (='A&P'||'R&I')
  The array references are: CHANNEL,
    VELOCITY, FREQUENCY, AMPLITUDE, PHASE, ANTENNA
  The global variable $Astro::Misc:oldpossm (default=0) controls whether
@@ -105,8 +114,10 @@ sub read_possm ($\%) {
   while (<$fh>) {
     if (/^Source:\s*(\S*)/) {  
       $$hashref{SOURCE} = $1;
-    } elsif (/^OBS\. DATE: (\S+)/) {
+    } elsif (/^OBS\.\sDATE:\s(\S+)\s+Time\sof\srecord:\s+
+             (\d+\/\s+\d+\s+\d+\s+\d+\.\d+)/x) {
       $$hashref{DATE} = $1;
+      $$hashref{TIME} = $2;
     } elsif (/^Bw \(\S+\):\s+(\S+)/) {
       $$hashref{BANDWIDTH} = $1;
     } elsif (/^Antenna\s#\s+\d+\s+name:\s+(\S+)/) {
@@ -320,6 +331,7 @@ sub read_lovas ($;$$) {
 }
 
 # Used internally for calc_U
+# Ref: Mezger & Henderson 1967, ApJ 147 p 471 Eq A.2
 sub a ($) {
   my $freq = shift;
 
@@ -337,9 +349,9 @@ sub a ($) {
  Based on Eqn 8 in Schraml and Mezger, 1969
    $flux        Integrated Source Flux Density (Jy)
    $dist        Distance to source (kpc)
-   $freq        Frequency of observation
+   $freq        Frequency of observation (GHz)
  Note:
-  Uses the global variable $Astro::Misc::temp for electron temperature
+  Uses the global variable $Astro::Misc::Temp for electron temperature
   Default is 10000K
 
 =cut
@@ -360,6 +372,7 @@ sub calc_U ($$$) {
  Calculate the Lyman continuum photon flux given U, the Excitation
  Parameter for an UCHII region
    $U is the Excitation Parameter (from calc_U)
+  Ref: Kurtz 1994 ApJS 91 p659 Eq (1) (Original Origin unknown)
 
 =cut
 
@@ -367,57 +380,135 @@ sub calc_Nl ($) {
 
   my ($U) = @_;
 
-  my $Nl = ($U * 1.0976 / 2.01e-19)**3 * (3.43e-13);
+  # This came from Panagia 1973 AJ 78 p929 Eq 5.
+  #my $Nl = ($U / 1.0976 / 2.01e-19)**3 * (3.43e-13);
 
-  return ($Nl);
+  # This is the same from Kurtz but includes the Electron Temperature
+  my $Nl = 8.04e46 * $Temp**-0.85 * $U**3;
+
+  return $Nl;
+
 }
 
-my @speclist = ('O4', 'O5', 'O5.5', 'O6', 'O6.5', 'O7', 'O7.5', 'O8', 
-		'O8.5', 'O9', 'O9.5', 'B0', 'B0.5', 'B1', 'B2', 'B3');
-my @lumlist = (6.11, 5.83, 5.60, 5.40, 5.17, 5.00, 4.92, 4.81,
-	       4.73, 4.66, 4.58, 4.40, 4.04, 3.72, 3.46, 3.02);
-my @Nllist = (49.93, 49.62, 49.36, 49.08, 49.82, 48.62, 48.51, 48.35, 48.21,
-	      48.08, 47.84, 47.36, 46.23, 45.29, 44.65, 43.69);
+## Replaced by values from Thompson 1984
+#  my @speclist = ('O4', 'O5', 'O5.5', 'O6', 'O6.5', 'O7', 'O7.5', 'O8', 
+#  		'O8.5', 'O9', 'O9.5', 'B0', 'B0.5', 'B1', 'B2', 'B3');
+#  my @lumlist = (6.11, 5.83, 5.60, 5.40, 5.17, 5.00, 4.92, 4.81,
+#  	       4.73, 4.66, 4.58, 4.40, 4.04, 3.72, 3.46, 3.02);
+#  my @Nllist = (49.93, 49.62, 49.36, 49.08, 49.82, 48.62, 48.51, 48.35, 48.21,
+#  	      48.08, 47.84, 47.36, 46.23, 45.29, 44.65, 43.69);
 
-die '@lumlist, @speclist and @Nlist must be the same size'
-    if (scalar(@lumlist) != scalar(@speclist) 
-	|| scalar(@lumlist) != scalar(@Nllist));
+#  die '@lumlist, @speclist and @Nlist must be the same size'
+#      if (scalar(@lumlist) != scalar(@speclist) 
+#  	|| scalar(@lumlist) != scalar(@Nllist));
+
+#  =item B<lum2spectral>
+
+#    $spectral_type = lum2spectral($luminosity);
+
+#   Calculate the spectral type of a ZAMS star from its luminosity
+#   Based on Panagia, 1973, ApJ, 78, 929.
+#     $luminosity   Star luminosity (normalised to Lsun)
+#   Returns undef if luminosity is out of range (O4 - B3)
+
+#  =cut
+
+#  sub lum2spectral ($) {
+
+#    my ($lum) = @_;
+#    $lum = log10($lum);
+
+#    my $n = scalar (@speclist);
+
+#    if ($lum > $lumlist[0]) {
+#      return ">$speclist[0]";
+#    } elsif ($lum < $lumlist[$n-1]) {
+#      return "<$speclist[$n-1]";
+#    };
+
+#    my $i = 1;
+
+#    # Find the closest pair
+#    while ($lum < $lumlist[$i]) {
+#      $i++;
+#    }
+#    # Return the closest one
+#    if ($lumlist[$i-1]-$lum > $lum - $lumlist[$i]) {
+#      return $speclist[$i];
+#    } else {
+#      return $speclist[$i-1];
+#    }
+#  }
+
+#  =item B<Nl2spectral>
+
+#    $spectral = Nl2spectral($Nl);
+
+#   Calculate the spectral type of a ZAMS star from its flux of
+#   Lyman Continuum Photons (Nl)
+#   Based on Panagia, 1973, ApJ, 78, 929
+#     $Nl     Flux of Lyman Continuum Photons
+#   Returns undef if luminosity is out of range (O4 - B3)
+
+#  =cut
+
+#  sub Nl2spectral ($) {
+
+#    my ($Nl) = @_;
+#    $Nl = log10($Nl);
+
+#    my $n = scalar (@speclist);
+
+#    if ($Nl > $Nllist[0]) {
+#      return ">$speclist[0]";
+#    } elsif ($Nl < $Nllist[$n-1]) {
+#      return "<$speclist[$n-1]";
+#    };
+
+#    my $i = 1;
+  
+#    # Find the closest pair
+#    while ($Nl < $Nllist[$i]) {
+#      $i++;
+#    }
+#    # Return the closest one
+#    if ($Nllist[$i-1]-$Nl > $Nl - $Nllist[$i]) {
+#      return $speclist[$i];
+#    } else {
+#      return $speclist[$i-1];
+#    }
+#  }
 
 =item B<lum2spectral>
 
   $spectral_type = lum2spectral($luminosity);
 
  Calculate the spectral type of a ZAMS star from its luminosity
- Based on Panagia, 1973, ApJ, 78, 929.
+ Based on Thompson 1984 ApJ 283 165 Table 1
    $luminosity   Star luminosity (normalised to Lsun)
- Returns undef if luminosity is out of range (O4 - B3)
 
 =cut
 
-sub lum2spectral ($) {
+sub lum2spectral($) {
+  my $lum = log10(shift);
 
-  my ($lum) = @_;
-  $lum = log10($lum);
-
-  my $n = scalar (@speclist);
-
-  if ($lum > $lumlist[0]) {
-    return ">$speclist[0]";
-  } elsif ($lum < $lumlist[$n-1]) {
-    return "<$speclist[$n-1]";
+  my $n = scalar (@ThompsonData);
+  if ($lum < $ThompsonData[0][LUM]) {
+    return "<$ThompsonData[0][SPEC]";
+  } elsif ($lum > $ThompsonData[$n-1][LUM]) {
+    return ">$ThompsonData[$n-1][SPEC]";
   };
 
-  my $i = 1;
-
+  $n = 1;
   # Find the closest pair
-  while ($lum < $lumlist[$i]) {
-    $i++;
+  while ($lum > $ThompsonData[$n][LUM]) {
+    $n++;
   }
   # Return the closest one
-  if ($lumlist[$i-1]-$lum > $lum - $lumlist[$i]) {
-    return $speclist[$i];
+  if ($ThompsonData[$n][LUM]-$lum < $lum - $ThompsonData[$n-1][LUM]) {
+    return $ThompsonData[$n][SPEC];
   } else {
-    return $speclist[$i-1];
+    return $ThompsonData[$n-1][SPEC];
   }
 }
 
@@ -428,38 +519,33 @@ sub lum2spectral ($) {
  Calculate the spectral type of a ZAMS star from its flux of
  Lyman Continuum Photons (Nl)
  Based on Panagia, 1973, ApJ, 78, 929
-   $Nl     Flux of Lyman Continuum Photons
- Returns undef if luminosity is out of range (O4 - B3)
+    $Nl     Flux of Lyman Continuum Photons
 
 =cut
 
 sub Nl2spectral ($) {
-
-  my ($Nl) = @_;
-  $Nl = log10($Nl);
-
-  my $n = scalar (@speclist);
-
-  if ($Nl > $Nllist[0]) {
-    return ">$speclist[0]";
-  } elsif ($Nl < $Nllist[$n-1]) {
-    return "<$speclist[$n-1]";
+  my $Nl = log10(shift);
+  
+  my $n = scalar (@ThompsonData);
+  
+  if ($Nl < $ThompsonData[0][NL]) {
+    return "<$ThompsonData[0][SPEC]";
+  } elsif ($Nl > $ThompsonData[$n-1][NL]) {
+    return ">$ThompsonData[$n-1][SPEC]";
   };
 
-  my $i = 1;
-  
+  $n = 1;
   # Find the closest pair
-  while ($Nl < $Nllist[$i]) {
-    $i++;
+  while ($Nl > $ThompsonData[$n][NL]) {
+    $n++;
   }
   # Return the closest one
-  if ($Nllist[$i-1]-$Nl > $Nl - $Nllist[$i]) {
-    return $speclist[$i];
+  if ($ThompsonData[$n][NL]-$Nl < $Nl - $ThompsonData[$n-1][NL]) {
+    return $ThompsonData[$n][SPEC];
   } else {
-    return $speclist[$i-1];
+    return $ThompsonData[$n-1][SPEC];
   }
 }
-
 
 =item B<kindist>
 
@@ -615,5 +701,63 @@ sub model_2 ($) {
 
 1;
 
-__END__
-
+__DATA__
+G2      5500   -0.17    10.80    41.00    28.42    55.92    56.07    43.33
+G2      5800    0.00    10.84    41.90    29.32    56.19    56.34    43.60
+GO      5980    0.10    10.86    42.44    29.85    56.35    56.50    43.76
+G0      6000    0.11    10.86    42.49    29.90    56.37    56.52    43.78
+F8      6210    0.22    10.88    43.14    30.55    56.53    56.68    43.94
+F7      6370    0.28    10.89    43.50    30.91    56.62    56.77    44.03
+F7      6500    0.34    10.91    43.85    31.26    56.71    56.86    44.13
+F6      6580    0.38    10.92    44.06    31.47    56.76    56.91    44.18
+F5      6810    0.48    10.94    44.59    32.00    56.90    57.05    44.32
+F3      7000    0.56    10.95    45.01    32.43    57.01    57.16    44.43
+F2      7240    0.66    10.97    45.39    32.80    57.14    57.29    44.56
+F2      7500    0.77    11.00    45.80    33.21    57.29    57.44    44.70
+F0      7520    0.78    11.00    45.86    33.27    57.30    57.45    44.71
+F0      8000    0.94    11.03    46.78    34.19    57.52    57.67    44.93
+A5      8500    1.11    11.06    47.81    35.22    57.74    57.89    45.16
+A4      8630    1.16    11.07    48.22    36.63    57.81    57.96    45.23
+A3      8840    1.23    11.08    48.79    36.20    57.91    58.06    45.33
+A3      9000    1.27    11.09    49.11    36.53    57.97    58.12    45.39
+A2      9070    1.29    11.09    49.27    36.69    58.00    58.15    45.42
+A1      9320    1.35    11.10    49.77    37.19    58.09    58.24    45.51
+A1      9400    1.37    11.10    49.93    37.34    58.12    58.27    45.54
+A0      9600    1.43    11.12    50.24    37.65    58.20    58.35    45.62
+B9.5   10000    1.55    11.14    50.85    38.26    58.37    58.52    45.78
+B9.5   10500    1.69    11.17    51.39    38.81    58.55    58.70    45.96
+B9     10700    1.74    11.17    51.62    39.04    58.62    58.77    46.03
+B9     11000    1.79    11.18    51.85    39.26    58.69    58.84    46.10
+B9     11500    1.88    11.18    52.26    39.67    58.80    58.95    46.22
+B8     12000    1.97    11.19    52.62    40.03    58.92    59.07    46.33
+B8     12500    2.06    11.20    52.98    40.39    59.03    59.18    46.44
+B8     13000    2.13    11.20    53.29    40.71    59.11    59.26    46.53
+B7     13600    2.22    11.21    53.60    41.02    59.22    59.37    46.63
+B7     14000    2.30    11.22    53.88    41.30    59.30    59.45    46.71
+B6     14600    2.42    11.24    54.23    41.65    59.43    59.58    46.84
+B6     15000    2.50    11.26    54.47    41.89    59.52    59.67    46.93
+B5     15600    2.61    11.28    54.80    42.22    59.64    59.79    47.05
+B5     16000    2.68    11.30    55.01    42.42    59.71    59.86    47.12
+B5     17000    2.85    11.33    55.52    42.93    59.88    60.03    47.30
+B3     17900    3.01    11.36    55.95    43.36    60.05    60.20    47.47
+B3     18000    3.03    11.37    56.00    43.41    60.07    60.22    47.48
+B3     20000    3.37    11.45    56.83    44.24    60.41    60.56    47.83
+B2     20500    3.45    11.46    57.04    44.45    60.49    60.64    47.91
+B2     22500    3.69    11.51    57.66    45.08    60.73    60.88    48.14
+B1     22600    3.70    11.51    57.69    45.11    60.74    60.89    48.15
+B1     25000    3.92    11.53    58.36    45.78    60.96    61.11    48.37
+B0.5   26200    4.03    11.54    58.70    46.12    61.07    61.22    48.48
+B0.5   30000    4.33    11.58    59.62    47.03    61.36    61.51    48.77
+B0     30900    4.40    11.59    59.82    47.23    61.42    61.57    48.83
+O9.5   33000    4.58    11.61    60.34    47.75    61.58    61.73    48.99
+O9     34500    4.66    11.62    60.57    47.98    61.65    61.80    49.06
+O9     35000    4.70    11.63    60.68    48.09    61.69    61.84    49.10
+O8.5   35500    4.73    11.63    60.73    48.14    61.72    61.87    49.13
+O8     36500    4.81    11.65    60.85    48.26    61.79    61.94    49.20
+O7.5   37500    4.92    11.68    61.02    48.43    61.88    62.03    49.29
+O7     38500    5.00    11.70    61.15    48.56    61.95    62.10    49.36
+O6.5   40000    5.17    11.75    61.41    48.83    62.10    62.25    49.51
+O6     42000    5.40    11.82    61.67    49.08
+O5.5   44500    5.60    11.87    61.95    49.36
+O5     47000    5.83    11.94    62.21    49.62
+O4     50000    6.11    12.02    62.52    49.93

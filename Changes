@@ -8,3 +8,11 @@
 	- Fixed spelling in PODs
 0.5  Nov 19 1999 - First CPAN release
 	- Added README and minor changes 
+0.51 Nov 17 2000
+	- Minor Changes
+	- Added j2gal routine
+
+0.6  Nov 2 2001
+	- Replace J2000 <-> B1950 routines with copies of SLALIB routines
+	- Updated calc_Nl (and bug fix)
+	- Replace Panagia spectral type values by Thompson

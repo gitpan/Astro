@@ -137,8 +137,8 @@ printf("lst2mjd:    LST %s on $dayno/$year \@ %s ==> MJD %.2f\n",
        turn2str($lmst,'H',0,'hms'), turn2str($longitude,'D',0,':'),
        $mjd);
 
-$x = 0.213;
-$y = -0.157;
+$x = deg2turn(-15.585);
+$y = deg2turn(+11.507);
 ($az, $el) = xy2azel($x, $y);
 printf("xy2azel:    %s,%s ==> %s,%s\n", turn2str($x,'D',0),
        turn2str($y,'D',0), turn2str($az,'D',0), turn2str($el,'D',0));

@@ -19,7 +19,7 @@ conversions, such as hour angle to elevation and J2000 to B1950.
 
 =head1 AUTHOR
 
-Chris Phillips  phillips@jive.nfra.nl
+Chris Phillips  phillips@jive.nl
 
 =head1 FUNCTIONS
 
@@ -30,11 +30,11 @@ BEGIN {
   use Exporter ();
   use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL 
                $PI $StrSep $StrZero );
-  $VERSION = '1.00';
+  $VERSION = '1.20';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( xy2azel azel2xy eqazel
-                     fk4fk5 fk5fk4 fk4gal galfk4
+                     fk4fk5 fk5fk4 fk4gal galfk4 j2gal
                      coord_convert
                      haset_ewxy ewxy_tlos haset_azel azel_tlos
                      antenna_rise
@@ -56,17 +56,57 @@ use constant JULIAN_DAYS_IN_CENTURY => 36525.0;
 # (used in fk4fk5 fk5fk4 fk4gal galfk4)
 my @eterm = (-1.62557E-06, -0.31919E-06, -0.13843E-06);
 
-# The precession matrix for FK4 <--> FK5 conversions (used in
-# fk4fk5 and fk5fk4)
-my @btoj = ([+0.999925678186902,-0.011182059642247,-0.004857946558960],
-	    [+0.011182059571766,+0.999937478448132,-0.000027176441185],
-	    [+0.004857946721186,-0.000027147426498,+0.999988199738770]);
+## The precession matrix for FK4 <--> FK5 conversions (used in
+## fk4fk5 and fk5fk4)
+#my @btoj = ([+0.999925678186902,-0.011182059642247,-0.004857946558960],
+#	    [+0.011182059571766,+0.999937478448132,-0.000027176441185],
+#	    [+0.004857946721186,-0.000027147426498,+0.999988199738770]);
 
 # The precession matrix for FK4 <--> Galactic conversions (used in
 # fk4gal and galfk4)
 my @etog = ([-0.066988739415,-0.872755765852,-0.483538914632],
 	    [+0.492728466075,-0.450346958020,+0.744584633283],
 	    [-0.867600811151,-0.188374601723,+0.460199784784]);
+
+# Values used in SLALIB routines
+
+use constant D2PI => 6.283185307179586476925287;
+
+#  Radians per year to arcsec per century
+use constant PMF => 100*60*60*360/D2PI;
+
+#  Small number to avoid arithmetic problems
+use constant TINY => 1e-30;
+
+#  Km per sec to AU per tropical century
+#  = 86400 * 36524.2198782 / 149597870
+use constant  VF => 21.095;
+
+#  Vectors A and Adot, and matrix M
+my @a = ( -1.62557e-6,  -0.31919e-6, -0.13843e-6,
+	  +1.245e-3, -1.580e-3, -0.659e-3);
+
+my @ad =(+1.245e-3,    -1.580e-3,   -0.659e-3);
+
+my @em = ([+0.9999256782, -0.0111820611, -0.0048579477],
+	  [+0.0111820610, +0.9999374784, -0.0000271765],
+	  [+0.0048579479, -0.0000271474, +0.9999881997],
+	  [-0.000551,	    -0.238565,     +0.435739],
+	  [+0.238514,     -0.002667,     -0.008541],
+	  [-0.435623,     +0.012254,     +0.002117]);
+
+my @emi = ([+0.9999256795, +0.0111814828, +0.0048590039,
+	    -0.00000242389840, -0.00000002710544, -0.00000001177742],
+	   [-0.0111814828, +0.9999374849, -0.0000271771,
+	    +0.00000002710544, -0.00000242392702, +0.00000000006585],
+	   [-0.0048590040, -0.0000271557, +0.9999881946,
+	    +0.00000001177742, +0.00000000006585, -0.00000242404995],
+	   [-0.000551,     +0.238509,     -0.435614,
+	    +0.99990432,       +0.01118145,       +0.00485852],
+	   [-0.238560,     -0.002667,     +0.012254,
+	    -0.01118145,       +0.99991613,       -0.00002717],
+	   [+0.435730,     -0.008541,     +0.002117,
+	    -0.00485852,       -0.00002716,       +0.99996684]);
 
 =item B<pol2r>
 
@@ -200,6 +240,151 @@ sub eqazel ($$$) {
 
 }
 
+=item B<fk4fk5>
+
+ ($JRA, $JDec) = fk4fk5($BRA, $BDec);
+      (@fk5) = fk4fk5(@fk4);
+
+ Converts an FK4 (B1950) position to the equivalent FK5 (J2000) 
+ position.
+   $BRA,$BDec     fk4/B1950 position (turns)
+   $JRA,$Dec      fk5/J2000 position (turns)
+   @fk4           fk4/B1950 position (as a 3-vector)
+   @fk5           fk5/J2000 position (as a 3-vector)
+ Note:
+  This code is based on similar routines from the Fortran SLALIB 
+  package, so are quite accurate, but subject to a restrictive 
+  license (see README).
+
+=cut
+
+sub fk4fk5 (@) {
+#     - - - - - -
+#      F K 4 5 Z
+#     - - - - - -
+#
+#  Convert B1950.0 FK4 star data to J2000.0 FK5 assuming zero
+#  proper motion in the FK5 frame (double precision)
+#
+#  This routine converts stars from the old, Bessel-Newcomb, FK4
+#  system to the new, IAU 1976, FK5, Fricke system, in such a
+#  way that the FK5 proper motion is zero.  Because such a star
+#  has, in general, a non-zero proper motion in the FK4 system,
+#  the routine requires the epoch at which the position in the
+#  FK4 system was determined.
+#
+#  The method is from Appendix 2 of Ref 1, but using the constants
+#  of Ref 4.
+#
+#  Given:
+#     R1950,D1950     dp    B1950.0 FK4 RA,Dec at epoch (rad)
+#     BEPOCH          dp    Besselian epoch (e.g. 1979.3D0)
+#
+#  Returned:
+#     R2000,D2000     dp    J2000.0 FK5 RA,Dec (rad)
+#
+#  Notes:
+#
+#  1)  The epoch BEPOCH is strictly speaking Besselian, but
+#      if a Julian epoch is supplied the result will be
+#      affected only to a negligible extent.
+#
+#  2)  Conversion from Besselian epoch 1950.0 to Julian epoch
+#      2000.0 only is provided for.  Conversions involving other
+#      epochs will require use of the appropriate precession,
+#      proper motion, and E-terms routines before and/or
+#      after FK45Z is called.
+#
+#  3)  In the FK4 catalogue the proper motions of stars within
+#      10 degrees of the poles do not embody the differential
+#      E-term effect and should, strictly speaking, be handled
+#      in a different manner from stars outside these regions.
+#      However, given the general lack of homogeneity of the star
+#      data available for routine astrometry, the difficulties of
+#      handling positions that may have been determined from
+#      astrometric fields spanning the polar and non-polar regions,
+#      the likelihood that the differential E-terms effect was not
+#      taken into account when allowing for proper motion in past
+#      astrometry, and the undesirability of a discontinuity in
+#      the algorithm, the decision has been made in this routine to
+#      include the effect of differential E-terms on the proper
+#      motions for all stars, whether polar or not.  At epoch 2000,
+#      and measuring on the sky rather than in terms of dRA, the
+#      errors resulting from this simplification are less than
+#      1 milliarcsecond in position and 1 milliarcsecond per
+#      century in proper motion.
+#
+#  References:
+#
+#     1  Aoki,S., et al, 1983.  Astron.Astrophys., 128, 263.
+#
+#     2  Smith, C.A. et al, 1989.  "The transformation of astrometric
+#        catalog systems to the equinox J2000.0".  Astron.J. 97, 265.
+#
+#     3  Yallop, B.D. et al, 1989.  "Transformation of mean star places
+#        from FK4 B1950.0 to FK5 J2000.0 using matrices in 6-space".
+#        Astron.J. 97, 274.
+#
+#     4  Seidelmann, P.K. (ed), 1992.  "Explanatory Supplement to
+#        the Astronomical Almanac", ISBN 0-935702-68-7.
+#
+#  Called:  sla_DCS2C, sla_EPJ, sla_EPB2D, sla_DCC2S, sla_DRANRM
+#
+#  P.T.Wallace   Starlink   21 September 1998
+#
+#  Copyright (C) 1998 Rutherford Appleton Laboratory
+
+  my $bepoch = 1950.0; # Assumption, probably should be parameter
+  my ($rect, $w, $i, $j);
+  my (@r0, @a1, @v1, @v2); #  Position and position+velocity vectors
+
+  if (@_==3) { # Rectangular coordinates passed
+    @r0 = @_;
+    $rect = 1;
+  } elsif (@_==2) { # Sperical coordinates
+    @r0 = pol2r($_[0],$_[1]); #  Spherical to Cartesian
+    $rect = 0;
+  } elsif (@_>3) {
+    croak "Too many arguments for Astro::fk4fk5 ";
+  } else {
+    croak "Not enough arguments for Astro::fk4fk5 ";
+  }
+
+  #  Adjust vector A to give zero proper motion in FK5
+  $w=($bepoch-1950)/PMF;
+  for ($i=0; $i<3; $i++) {
+    $a1[$i]=$a[$i]+$w*$ad[$i];
+  }
+  #  Remove e-terms
+  $w=$r0[0]*$a1[0]+$r0[1]*$a1[1]+$r0[2]*$a1[2];
+  for ($i=0; $i<3; $i++) {
+    $v1[$i]=$r0[$i]-$a1[$i]+$w*$r0[$i];
+  }
+
+  #  Convert position vector to Fricke system
+  for ($i=0; $i<6; $i++) {
+    $w=0;
+    for ($j=0; $j<3; $j++) {
+      #warn "DEBUG: [$i,$j]\n";
+      $w=$w+$em[$i][$j]*$v1[$j];
+      $v2[$i]=$w
+    }
+  }
+
+  #  Allow for fictitious proper motion in FK4
+  $w=(epj(epb2d($bepoch))-2000)/PMF;
+  for ($i=0; $i<3; $i++) {
+    $v2[$i]=$v2[$i]+$w*$v2[$i+3];
+  }
+
+  if ($rect) {
+    return @v2[0..2];
+  } else {
+    #  Revert to spherical coordinates
+    return r2pol(@v2[0..2]);
+  }
+}
+
 =item B<fk4fk5r>
 
  @fk5 = fk4fk5r(@fk4);
@@ -208,88 +393,328 @@ sub eqazel ($$$) {
  Note: Convert equitoral positions to/from 3-vectors using pol2r and r2pol.
    @fk4       fk4 position (as a 3-vector, turns)
    @fk5       fk5 position (as a 3-vector, turns)
-
- Returns undef if too few or two many arguments are passed.
+ Note:
+  Just a wrapper to fk4fk5 which now handler polar and rectangular
+  arguments
 
 =cut
 
-# Within 0.2 arcsec of SLALIB
 sub fk4fk5r (@) {
-  # First check that we have 3 arguments
-  if (scalar @_ < 3) {
-    croak 'Not enough arguments for Astro::Coord::fk4fk5r at ';
-  } elsif (scalar @_ > 3) {
-    croak 'Too many arguments for Astro::Coord::fk4fk5r at ';
-  }
-
-  my ($i, $j, @temp, @fk5);
-  my $w = 0.0;
-
-  # Add the eterms
-  for ($i=0 ; $i<3 ; $i++) {
-    $w += $_[$i] * $eterm[$i];
-  }
-  for ($i=0 ; $i<3 ; $i++) {
-    $temp[$i] = $_[$i] - $eterm[$i] + $w * $_[$i];
-  }
-
-  # Precess from FK4 to FK5
-  for ($i=0 ; $i<3 ; $i++) {
-    $fk5[$i] = 0.0;
-    for ($j=0 ; $j<3 ; $j++) {
-      $fk5[$i] += $btoj[$i][$j] * $temp[$j];
-    }
-  }
-
-  return(@fk5);
+  return fk4fk5(@_);
 }
 
-=item B<fk5fk4r>
+#sub fk4fk5r (@) {
+#  # First check that we have 3 arguments
+#  if (scalar @_ < 3) {
+#    croak 'Not enough arguments for Astro::Coord::fk4fk5r at ';
+#  } elsif (scalar @_ > 3) {
+#    croak 'Too many arguments for Astro::Coord::fk4fk5r at ';
+#  }
+#
+#  my ($i, $j, @temp, @fk5);
+#  my $w = 0.0;
+#
+#  # Add the eterms
+#  for ($i=0 ; $i<3 ; $i++) {
+#    $w += $_[$i] * $eterm[$i];
+#  }
+#  for ($i=0 ; $i<3 ; $i++) {
+#    $temp[$i] = $_[$i] - $eterm[$i] + $w * $_[$i];
+#  }
+#
+#  # Precess from FK4 to FK5
+#  for ($i=0 ; $i<3 ; $i++) {
+#    $fk5[$i] = 0.0;
+#    for ($j=0 ; $j<3 ; $j++) {
+#      $fk5[$i] += $btoj[$i][$j] * $temp[$j];
+#    }
+#  }
+#
+#  return(@fk5);
+#}
 
-  @fk4 = fk5fk4r(@fk5);
+=item B<fk5fk4>
+
+ ($JRA, $JDec) = fk4fk5($BRA, $BDec);
+       ($@fk5) = fk4fk5(@fk4);
 
  Converts an FK5 (J2000) position to the equivalent FK4 (B1950) position.
- Note: Convert equitoral positions to/from 3-vectors using pol2r and r2pol.
-   @fk5     fk5 position (as a 3-vector, turns)
-   @fk4     fk4 position (as a  3-vector, turns)
+   $JRA,$Dec      fk5/J2000 position (turns)
+   $BRA,$BDec     fk4/B1950 position (turns)
+   @fk5           fk5/J2000 position (as a 3-vector)
+   @fk4           fk4/B1950 position (as a 3-vector)
+ Note:
+  This code is based on similar routines from the Fortran SLALIB 
+  package, so are quite accurate, but subject to a restrictive 
+  license (see README).
 
 =cut
 
-# Within 0.2 of SLALIB
-sub fk5fk4r(@) {
-
-  # First check that we have 3 arguments
-  if (scalar @_ < 3) {
-    croak 'Not enough arguments for Astro::Coord::fk5fk4r at ';
-  } elsif (scalar @_ > 3) {
-    croak 'Too many arguments for Astro::Coord::fk5fk4r at ';
+sub fk5fk4 (@) {
+#+
+#     - - - - - -
+#      F K 5 2 4
+#     - - - - - -
+#
+#  Convert J2000.0 FK5 star data to B1950.0 FK4 (double precision)
+#
+#  This routine converts stars from the new, IAU 1976, FK5, Fricke
+#  system, to the old, Bessel-Newcomb, FK4 system.  The precepts
+#  of Smith et al (Ref 1) are followed, using the implementation
+#  by Yallop et al (Ref 2) of a matrix method due to Standish.
+#  Kinoshita's development of Andoyer's post-Newcomb precession is
+#  used.  The numerical constants from Seidelmann et al (Ref 3) are
+#  used canonically.
+#
+#  Given:  (all J2000.0,FK5)
+#     R2000,D2000     dp    J2000.0 RA,Dec (rad)
+#     DR2000,DD2000   dp    J2000.0 proper motions (rad/Jul.yr)
+#     P2000           dp    parallax (arcsec)
+#     V2000           dp    radial velocity (km/s, +ve = moving away)
+#
+#  Returned:  (all B1950.0,FK4)
+#     R1950,D1950     dp    B1950.0 RA,Dec (rad)
+#     DR1950,DD1950   dp    B1950.0 proper motions (rad/trop.yr)
+#     P1950           dp    parallax (arcsec)
+#     V1950           dp    radial velocity (km/s, +ve = moving away)
+#
+#  Notes:
+#
+#  1)  The proper motions in RA are dRA/dt rather than
+#      cos(Dec)#dRA/dt, and are per year rather than per century.
+#
+#  2)  Note that conversion from Julian epoch 2000.0 to Besselian
+#      epoch 1950.0 only is provided for.  Conversions involving
+#      other epochs will require use of the appropriate precession,
+#      proper motion, and E-terms routines before and/or after
+#      FK524 is called.
+#
+#  3)  In the FK4 catalogue the proper motions of stars within
+#      10 degrees of the poles do not embody the differential
+#      E-term effect and should, strictly speaking, be handled
+#      in a different manner from stars outside these regions.
+#      However, given the general lack of homogeneity of the star
+#      data available for routine astrometry, the difficulties of
+#      handling positions that may have been determined from
+#      astrometric fields spanning the polar and non-polar regions,
+#      the likelihood that the differential E-terms effect was not
+#      taken into account when allowing for proper motion in past
+#      astrometry, and the undesirability of a discontinuity in
+#      the algorithm, the decision has been made in this routine to
+#      include the effect of differential E-terms on the proper
+#      motions for all stars, whether polar or not.  At epoch 2000,
+#      and measuring on the sky rather than in terms of dRA, the
+#      errors resulting from this simplification are less than
+#      1 milliarcsecond in position and 1 milliarcsecond per
+#      century in proper motion.
+#
+#  References:
+#
+#     1  Smith, C.A. et al, 1989.  "The transformation of astrometric
+#        catalog systems to the equinox J2000.0".  Astron.J. 97, 265.
+#
+#     2  Yallop, B.D. et al, 1989.  "Transformation of mean star places
+#        from FK4 B1950.0 to FK5 J2000.0 using matrices in 6-space".
+#        Astron.J. 97, 274.
+#
+#     3  Seidelmann, P.K. (ed), 1992.  "Explanatory Supplement to
+#        the Astronomical Almanac", ISBN 0-935702-68-7.
+#
+#  P.T.Wallace   Starlink   19 December 1993
+#
+#  Copyright (C) 1995 Rutherford Appleton Laboratory
+#-
+  my ($rect, @v1, @v2);
+  if (@_==3) { # Rectangular coordinates passed
+    @v1 = @_;
+    $rect = 1;
+  } elsif (@_==2) { # Sperical coordinates
+    @v1 = pol2r($_[0],$_[1]); #  Spherical to Cartesian
+    $rect = 0;
+  } elsif (@_>2) {
+    croak "Too many arguments for Astro::fk5fk4 ";
+  } else {
+    croak "Not enough arguments for Astro::fk5fk4 ";
   }
 
-  my ($i, $j, @fk4);
-  my $w = 0.0;
+#  Miscellaneous
+  my ($w, $x, $y, $z, $wd, $rxyz);
+  my ($ur, $ud, $xd, $yd, $zd);
+  my ($i,$j);
 
-  # Precess.  Note : the same matrix is used as for the FK4 -> FK5
-  #                  transformation, but we have transposed it within the
-  #                  for loop
-
-  for ($i=0 ; $i<3 ; $i++) {
-    $fk4[$i] = 0.0;
-    for ($j=0 ; $j<3 ; $j++) {
-      $fk4[$i] += $btoj[$j][$i] * $_[$j];
+  #  Convert position+velocity vector to BN system
+  for ($i=0; $i<6; $i++) {
+    $w=0.0;
+    ##for ($j=0; $j<6; $j++) {
+    for ($j=0; $j<3; $j++) {
+      $w=$w+$emi[$i][$j]*$v1[$j];
     }
+    $v2[$i]=$w;
   }
 
-  # Allow for e-terms 
-  for ($i=0 ; $i<3 ; $i++) {
-    $w += $_[$i] * $eterm[$i];
-  }
-  $w += 1.0;
-  for ($i=0 ; $i<3 ; $i++) {
-    $fk4[$i] = ($fk4[$i] + $eterm[$i])/$w;
+#  Position vector components and magnitude
+  $x=$v2[0];
+  $y=$v2[1];
+  $z=$v2[2];
+  $rxyz=sqrt($x*$x+$y*$y+$z*$z);
+
+#  Apply E-terms to position
+  $w=$x*$a[0]+$y*$a[1]+$z*$a[2];
+  $x=$x+$a[0]*$rxyz-$w*$x;
+  $y=$y+$a[1]*$rxyz-$w*$y;
+  $z=$z+$a[2]*$rxyz-$w*$z;
+
+#  Recompute magnitude
+  $rxyz=sqrt($x*$x+$y*$y+$z*$z);
+
+#  Apply E-terms to both position and velocity
+  $x=$v2[0];
+  $y=$v2[1];
+  $z=$v2[2];
+  $w=$x*$a[0]+$y*$a[1]+$z*$a[2];
+  $wd=$x*$a[3]+$y*$a[4]+$z*$a[5];
+  $x=$x+$a[0]*$rxyz-$w*$x;
+  $y=$y+$a[1]*$rxyz-$w*$y;
+  $z=$z+$a[2]*$rxyz-$w*$z;
+  $xd=$v2[3]+$a[3]*$rxyz-$wd*$x;
+  $yd=$v2[4]+$a[4]*$rxyz-$wd*$y;
+  $zd=$v2[5]+$a[5]*$rxyz-$wd*$z;
+
+
+  my @r;
+  if ($rect) {
+    @r = ($x, $y, $z);
+  } else {
+    @r= r2pol($x, $y, $z);
   }
 
-  return(@fk4);
+#  my $rxysq =$x*$x+$y*$y;
+#  my $rxy = sqrt($rxysq);
+#  if ($rxy>TINY) {
+#    $ur=($x*$yd-$y*$xd)/$rxysq;
+#    $ud=($zd*$rxysq-$z*($x*$xd+$y*$yd))/(($rxysq+$z*$z)*$rxy);
+#  }
+#
+##  Return results
+#  my $dr1950=$ur/PMF;
+#  my $dd1950=$ud/PMF;
+
+  return(@r);
 }
+
+#sub fk5fk4 (@) {
+##     - - - - - -
+##      F K 5 4 Z
+##     - - - - - -
+##
+##  Convert a J2000.0 FK5 star position to B1950.0 FK4 assuming
+##  zero proper motion and parallax (double precision)
+##
+##  This routine converts star positions from the new, IAU 1976,
+##  FK5, Fricke system to the old, Bessel-Newcomb, FK4 system.
+##
+##  Given:
+##     R2000,D2000     dp    J2000.0 FK5 RA,Dec (rad)
+##     BEPOCH          dp    Besselian epoch (e.g. 1950D0)
+##
+##  Returned:
+##     R1950,D1950     dp    B1950.0 FK4 RA,Dec (rad) at epoch BEPOCH
+##     DR1950,DD1950   dp    B1950.0 FK4 proper motions (rad/trop.yr)
+##
+##  Notes:
+##
+##  1)  The proper motion in RA is dRA/dt rather than cos(Dec)#dRA/dt.
+##
+##  2)  Conversion from Julian epoch 2000.0 to Besselian epoch 1950.0
+##      only is provided for.  Conversions involving other epochs will
+##      require use of the appropriate precession routines before and
+##      after this routine is called.
+##
+##  3)  Unlike in the sla_FK524 routine, the FK5 proper motions, the
+##      parallax and the radial velocity are presumed zero.
+##
+##  4)  It is the intention that FK5 should be a close approximation
+##      to an inertial frame, so that distant objects have zero proper
+##      motion;  such objects have (in general) non-zero proper motion
+##      in FK4, and this routine returns those fictitious proper
+##      motions.
+##
+##  5)  The position returned by this routine is in the B1950
+##      reference frame but at Besselian epoch BEPOCH.  For
+##      comparison with catalogues the BEPOCH argument will
+##      frequently be 1950D0.
+##
+##  Called:  sla_FK524, sla_PM
+##
+##  P.T.Wallace   Starlink   10 April 1990
+##
+##  Copyright (C) 1995 Rutherford Appleton Laboratory
+#
+#  my $bepoch = 1950.0;
+#
+#  my $rect;
+#  if (@_>3) {
+#    croak "Too many arguments for Astro::fk5fk4 ";
+#  } elsif (@_<2) {
+#    croak "Not enough arguments for Astro::fk5fk4 ";
+#  }
+#  my @r2000 = @_;
+#
+#  #  fk5 equinox j2000 (any epoch) to fk4 equinox b1950 epoch b1950
+#  my (@r1950) = fk524(@r2000);
+#  my $dd1950 = pop @r1950;
+#  my $dr1950 = pop @r1950;
+#
+#  ##  fictitious proper motion to epoch bepoch
+#  #my ($r1950, $d1950) = pm($r,$d,$dr1950,$dd1950,0.0,0.0,1950,$bepoch);
+#  return @r1950;
+#}
+
+#=item B<fk5fk4r>
+#
+#  @fk4 = fk5fk4r(@fk5);
+#
+# Converts an FK5 (J2000) position to the equivalent FK4 (B1950) position.
+# Note: Convert equitoral positions to/from 3-vectors using pol2r and r2pol.
+#   @fk5     fk5 position (as a 3-vector, turns)
+#   @fk4     fk4 position (as a  3-vector, turns)
+#
+#=cut
+#
+#sub fk5fk4r(@) {
+#
+#  # First check that we have 3 arguments
+#  if (scalar @_ < 3) {
+#    croak 'Not enough arguments for Astro::Coord::fk5fk4r at ';
+#  } elsif (scalar @_ > 3) {
+#    croak 'Too many arguments for Astro::Coord::fk5fk4r at ';
+#  }
+#
+#  my ($i, $j, @fk4);
+#  my $w = 0.0;
+#
+#  # Precess.  Note : the same matrix is used as for the FK4 -> FK5
+#  #                  transformation, but we have transposed it within the
+#  #                  for loop
+#
+#  for ($i=0 ; $i<3 ; $i++) {
+#    $fk4[$i] = 0.0;
+#    for ($j=0 ; $j<3 ; $j++) {
+#      $fk4[$i] += $btoj[$j][$i] * $_[$j];
+#    }
+#  }
+#
+#  # Allow for e-terms 
+#  for ($i=0 ; $i<3 ; $i++) {
+#    $w += $_[$i] * $eterm[$i];
+#  }
+#  $w += 1.0;
+#  for ($i=0 ; $i<3 ; $i++) {
+#    $fk4[$i] = ($fk4[$i] + $eterm[$i])/$w;
+#  }
+#
+#  return(@fk4);
+#}
 
 =item B<fk4galr>
 
@@ -345,7 +770,6 @@ sub fk4galr(@) {
  Notes: Convert equitoral positions to/from 3-vectors using pol2r and r2pol.
    @gal      Galactic position (as a 3-vector, turns)
    @fk4      fk4 position (as a  3-vector, turns)
- Returns undef if too few or two many arguments are passed.
  Reference : Blaauw et al., 1960, MNRAS, 121, 123.
 
 =cut
@@ -384,35 +808,35 @@ sub galfk4r(@) {
   return(@fk4);
 }
 
-=item B<fk4fk5>
+#=item B<fk4fk5>
+#
+# ($JRA, $JDec) = fk4fk5($BRA, $BDec);
+#
+# Converts an FK4 (B1950) position to the equivalent FK5 (J2000) position.
+#   **LOW PRECISION**
+#   $BRA,$BDec     fk4/B1950 position (turns)
+#   $JRA,$Dec      fk5/J2000 position (turns)
+#
+#=cut
+#
+#sub fk4fk5 ($$) {
+#  return r2pol(fk4fk5r(pol2r(shift,shift)));
+#}
 
- ($JRA, $JDec) = fk4fk5($BRA, $BDec);
-
- Converts an FK4 (B1950) position to the equivalent FK5 (J2000) position.
-   **LOW PRECISION**
-   $BRA,$BDec     fk4/B1950 position (turns)
-   $JRA,$Dec      fk5/J2000 position (turns)
-
-=cut
-
-sub fk4fk5 ($$) {
-  return r2pol(fk4fk5r(pol2r(shift,shift)));
-}
-
-=item B<fk5fk4>
-
- ($BRA, $BDec) = fk5fk4($JRA, $JDec);
-
- Converts an FK5 (J2000) position to the equivalent FK4 (B1950) position.
-   **LOW PRECISION**
-   $JRA,$Dec      fk5/J2000 position (turns)
-   $BRA,$BDec     fk4/B1950 position (turns)
-
-=cut
-
-sub fk5fk4 ($$) {
-  return r2pol(fk5fk4r(pol2r(shift,shift)));
-}
+#=item B<fk5fk4>
+#
+# ($BRA, $BDec) = fk5fk4($JRA, $JDec);
+#
+# Converts an FK5 (J2000) position to the equivalent FK4 (B1950) position.
+#   **LOW PRECISION**
+#   $JRA,$Dec      fk5/J2000 position (turns)
+#   $BRA,$BDec     fk4/B1950 position (turns)
+#
+#=cut
+#
+#sub fk5fk4 ($$) {
+#  return r2pol(fk5fk4r(pol2r(shift,shift)));
+#}
 
 =item B<fk4gal>
 
@@ -1369,6 +1793,138 @@ sub antenna_rise($$$$) {
     return(haset_azel($declination, $latitude, %$limitsref));
   }
 }
+
+my @b2g = ([-0.054875539726,  0.494109453312, -0.867666135858],
+	   [-0.873437108010, -0.444829589425, -0.198076386122],
+	   [-0.483834985808,  0.746982251810,  0.455983795705]);
+
+#my @b2g = ([ -0.0548777621, +0.4941083214, -0.8676666398],
+#	   [ -0.8734369591, -0.4448308610, -0.1980741871],
+#	   [ -0.4838350026, +0.7469822433, +0.4559837919]);
+
+sub j2gal($$) {
+  my ($ra,$dec) = @_;
+  my @r = pol2r($ra,$dec);
+  my @g = (0,0,0);
+  for (my $i=0; $i<3; $i++) {
+    for (my $j=0; $j<3; $j++) {
+      $g[$i]+= $b2g[$j][$i] * $r[$j];
+    }
+  }
+  return r2pol(@g);
+}
+
+# SLALIB support routines
+
+sub epb2d ($) {
+#     - - - - - -
+#      E P B 2 D
+#     - - - - - -
+#
+#  Conversion of Besselian Epoch to Modified Julian Date
+#  (double precision)
+#
+#  Given:
+#     EPB      dp       Besselian Epoch
+#
+#  The result is the Modified Julian Date (JD - 2400000.5).
+#
+#  Reference:
+#     Lieske,J.H., 1979. Astron.Astrophys.,73,282.
+#
+#  P.T.Wallace   Starlink   February 1984
+#
+#  Copyright (C) 1995 Rutherford Appleton Laboratory
+
+  my $epb = shift;
+
+  return 15019.81352 + ($epb-1900)*365.242198781;
+}
+
+sub epj ($) {
+#     - - - -
+#      E P J
+#     - - - -
+#
+#  Conversion of Modified Julian Date to Julian Epoch (double precision)
+#
+#  Given:
+#     DATE     dp       Modified Julian Date (JD - 2400000.5)
+#
+#  The result is the Julian Epoch.
+#
+#  Reference:
+#     Lieske,J.H., 1979. Astron.Astrophys.,73,282.
+#
+#  P.T.Wallace   Starlink   February 1984
+#
+#  Copyright (C) 1995 Rutherford Appleton Laboratory
+  my $date = shift;
+
+  return 2000 + ($date-51544.5)/365.25;
+}
+
+sub pm  ($$$$$$$$$$) {
+#     - - -
+#      P M
+#     - - -
+#
+#  Apply corrections for proper motion to a star RA,Dec
+#  (double precision)
+#
+#  References:
+#     1984 Astronomical Almanac, pp B39-B41.
+#     (also Lederle & Schwan, Astron. Astrophys. 134,
+#      1-6, 1984)
+#
+#  Given:
+#     R0,D0    dp     RA,Dec at epoch EP0 (rad)
+#     PR,PD    dp     proper motions:  RA,Dec changes per year of epoch
+#     EP0      dp     start epoch in years (e.g. Julian epoch)
+#     EP1      dp     end epoch in years (same system as EP0)
+#
+#  Returned:
+#     R1,D1    dp     RA,Dec at epoch EP1 (rad)
+#
+#  Called:
+#     sla_DCS2C       spherical to Cartesian
+#     sla_DCC2S       Cartesian to spherical
+#     sla_DRANRM      normalize angle 0-2Pi
+#
+#  Note:
+#     The proper motions in RA are dRA/dt rather than
+#     cos(Dec)*dRA/dt, and are in the same coordinate
+#     system as R0,D0.
+#
+#  P.T.Wallace   Starlink   23 August 1996
+#
+#  Copyright (C) 1996 Rutherford Appleton Laboratory
+
+  my ($r0, $d0, $pr, $pd, $ep0, $ep1) = @_;
+
+  #  Km/s to AU/year multiplied by arc seconds to radians
+  use constant VFR => 0.21094502*0.484813681109535994e-5;
+
+  my (@em, $t);
+
+  #  Spherical to Cartesian
+  my @p = pol2r($r0,$d0);
+
+  #  Space motion (radians per year)
+  $em[0]=-$pr*$p[1]-$pd*cos($r0)*sin($d0);
+  $em[1]= $pr*$p[0]-$pd*sin($r0)*sin($d0);
+  $em[2]=           $pd*cos($d0);
+
+  #  Apply the motion
+  $t=$ep1-$ep0;
+  for (my $i = 0; $i<3; $i++) {
+    $p[$i]=$p[$i]+$t*$em[$i];
+  }
+
+  # Cartesian to spherical
+  return r2pol(@p);
+}
+
 
 1;
 
