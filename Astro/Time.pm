@@ -538,6 +538,8 @@ sub time2hms ($$$) {
       }
     }
   }
+  my $format = sprintf '%%0%dd', $sig;
+  $secfract = sprintf($format, $secfract);
 
   if ($sig > 0) {
     return($sign, $wholeangle, $min, "$wholesec.$secfract");

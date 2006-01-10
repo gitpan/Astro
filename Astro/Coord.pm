@@ -603,6 +603,26 @@ sub fk5fk4 (@) {
   return(@r);
 }
 
+
+=item B<fk5fk4r>
+
+ @fk4 = fk5fk4r(@fk5);
+
+ Converts an FK5 (J2000) position to the equivalent FK4 (B1950) position.
+ Note: Convert equitoral positions to/from 3-vectors using pol2r and r2pol.
+   @fk4       fk4 position (as a 3-vector, turns)
+   @fk5       fk5 position (as a 3-vector, turns)
+ Note:
+  Just a wrapper to fk5fk4 which now handler polar and rectangular
+  arguments
+
+=cut
+
+sub fk5fk4r (@) {
+  return fk5fk4(@_);
+}
+
+
 #sub fk5fk4 (@) {
 ##     - - - - - -
 ##      F K 5 4 Z
@@ -1515,7 +1535,7 @@ sub coord_convert ($$$$;$$$$) {
 
     # Convert from J2000 to B1950
     if (($input_mode <= $J2000) && ($output_mode > $J2000)) {
-      @b1950 = fk5fk4r(@j2000);
+      @b1950 = fk5fk4(@j2000);
     }
 
     # Convert from B1950 to Galactic
