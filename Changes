@@ -28,3 +28,5 @@
 0.65 11 Jan 2006
 	- Fixed fract second error in time2hms
 	- Missing wrapper for fk5fk4r (used in coord_convert)
+0.66 12 Jan 2006
+	- Added support for PDL in Coord.pm - more work probably is needed
