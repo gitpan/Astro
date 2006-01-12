@@ -30,3 +30,5 @@
 	- Missing wrapper for fk5fk4r (used in coord_convert)
 0.66 12 Jan 2006
 	- Added support for PDL in Coord.pm - more work probably is needed
+0.67 13 Jan 2006
+	- Minor mistake in PDL support

@@ -30,7 +30,7 @@ BEGIN {
   use Exporter ();
   use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL 
 	       $bepoch );
-  $VERSION = '1.4';
+  $VERSION = '1.41';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( xy2azel azel2xy eqazel J2000todate
@@ -153,10 +153,6 @@ sub r2pol (@) {
   # Converts rectangular coordinates to polar
   my ($tmp, $left, $right);
   $tmp = atan2($y, $x)/(2.0*$PI);
-
-  if ($tmp < 0.0) {
-    $tmp += 1.0;
-  }
 
   if (ref($tmp) =~ /PDL/ ) {  # Allow to work with PDL
     $tmp -> where($tmp<0.0) .= $tmp -> where($tmp<0.0)  + 1.0;
