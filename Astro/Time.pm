@@ -36,7 +36,7 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.12';
+  $VERSION = '1.14';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
@@ -627,8 +627,22 @@ sub rad2turn {
 
 =cut
 
-sub turn2deg ($) {
-  return $_[0] * 360.0;
+#sub turn2deg ($) {
+#  return $_[0] * 360.0;
+#}
+
+sub turn2deg {
+  my @ret;
+  foreach (@_) {
+    push @ret, $_*360.0;
+  }
+  if (@ret==1) {
+    return $ret[0];
+  } elsif (@ret==0) {
+    return undef;
+  } else {
+    return @ret;
+  }
 }
 
 =item B<deg2turn>
@@ -638,8 +652,22 @@ sub turn2deg ($) {
 
 =cut
 
-sub deg2turn ($) {
-  return $_[0] / 360.0;
+#sub deg2turn ($) {
+#  return $_[0] / 360.0;
+#}
+
+sub deg2turn {
+  my @ret;
+  foreach (@_) {
+    push @ret, $_/360.0;
+  }
+  if (@ret==1) {
+    return $ret[0];
+  } elsif (@ret==0) {
+    return undef;
+  } else {
+    return @ret;
+  }
 }
 
 =item B<cal2dayno>

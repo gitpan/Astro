@@ -30,16 +30,17 @@ BEGIN {
   use Exporter ();
   use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL 
 	       $bepoch );
-  $VERSION = '1.41';
+  $VERSION = '1.42';
+
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( xy2azel azel2xy eqazel J2000todate
-                     fk4fk5 fk5fk4 fk4gal galfk4 j2gal
+                     fk4fk5 fk5fk4 fk4gal galfk4  j2gal
                      coord_convert
                      haset_ewxy ewxy_tlos haset_azel azel_tlos
-                     antenna_rise
+                     antenna_rise pol2r r2pol
                      );
-  @EXPORT_OK   = qw ( pol2r r2pol fk4fk5r fk5fk4r fk4galr galfk4r
+  @EXPORT_OK   = qw ( fk4fk5r fk5fk4r fk4galr galfk4r
                       ephem_vars nutate precsn $bepoch );
   @EXPORT_FAIL = qw ( );
 
@@ -793,25 +794,35 @@ sub fk4galr(@) {
   return(@gal);
 }
 
-=item B<galfk4r>
+=item B<galfk4>
 
-  @fk4 = galfk4r(@gal)
+  ($bRA, $bDec) = galfk4($l, $b);
+  @fk4 = galfk4(@gal);
 
  Converts an IAU 1958 Galactic position to the FK4 coordinate system (B1950)
- Notes: Convert equitoral positions to/from 3-vectors using pol2r and r2pol.
-   @gal      Galactic position (as a 3-vector, turns)
-   @fk4      fk4 position (as a  3-vector, turns)
+ Notes: Converts equitoral positions to/from 3-vectors using pol2r and r2pol.
+   $BRA,$BDec  fk4/B1950 position (turns)
+   $l, $b      Galactic longitude and latitude
+   @gal        Galactic position (as a 3-vector, turns)
+   @fk4        fk4 position (as a  3-vector, turns)
  Reference : Blaauw et al., 1960, MNRAS, 121, 123.
 
 =cut
 
 # Within 1e-7 arcsec of SLALIB slaGe50
-sub galfk4r(@) {
-  # First check that we have 3 arguments
-  if (scalar @_ < 3) {
-    croak 'Not enough arguments for Astro::Coord::galfk4r at ';
-  } elsif (scalar @_ > 3) {
-    croak 'Too many arguments for Astro::Coord::galfk4r at ';
+sub galfk4(@) {
+  my (@r, $rect);
+
+  if (@_==3) { # Rectangular coordinates passed
+    @r = @_;
+    $rect = 1;
+  } elsif (@_==2) { # Sperical coordinates
+    @r = pol2r($_[0],$_[1]); #  Spherical to Cartesian
+    $rect = 0;
+  } elsif (@_>3) {
+    croak "Too many arguments for Astro::galfk4 at";
+  } else {
+    croak "Not enough arguments for Astro::galfk4 at";
   }
 
   my ($i, $j, @fk4);
@@ -823,21 +834,27 @@ sub galfk4r(@) {
   for ($i=0 ; $i<3 ; $i++) {
     $fk4[$i] = 0.0;
     for ($j=0 ; $j<3 ; $j++) {
-      $fk4[$i] += $etog[$j][$i] * $_[$j];
+      $fk4[$i] += $etog[$j][$i] * $r[$j];
     }
   }
 
   # Allow for e-terms */
   for ($i=0 ; $i<3 ; $i++) {
-    $w += $_[$i] * $eterm[$i];
+    $w += $r[$i] * $eterm[$i];
   }
   $w += 1.0;
   for ($i=0 ; $i<3 ; $i++) {
     $fk4[$i] = ($fk4[$i] + $eterm[$i])/$w;
   }
 
-  return(@fk4);
+  if ($rect) {
+    return @fk4;
+  } else {
+    return r2pol(@fk4);
+  }
 }
+
+sub galfk4r(@) {galfk4(@_)};
 
 #=item B<fk4fk5>
 #
@@ -885,21 +902,21 @@ sub fk4gal ($$) {
   return r2pol(fk4galr(pol2r(shift,shift)));
 }
 
-=item B<galfk4>
-
-  ($ra, $dec) = galfk4($l, $b);
-
- Converts an IAU 1958 Galactic coordinate system position 
- to FK4  (B1950).
-   ($l, $b)    Galactic position (turns)
-  ($ra, $dec)  fk4 position to convert (turns)
-  Reference : Blaauw et al., 1960, MNRAS, 121, 123.
-
-=cut
-
-sub galfk4 ($$) {
-  return r2pol(galfk4r(pol2r(shift,shift)));
-}
+#=item B<galfk4>
+#
+#  ($ra, $dec) = galfk4($l, $b);
+#
+# Converts an IAU 1958 Galactic coordinate system position 
+# to FK4  (B1950).
+#   ($l, $b)    Galactic position (turns)
+#  ($ra, $dec)  fk4 position to convert (turns)
+#  Reference : Blaauw et al., 1960, MNRAS, 121, 123.
+#
+#=cut
+#
+#sub galfk4 ($$) {
+#  return r2pol(galfk4r(pol2r(shift,shift)));
+#}
 
 =item B<ephem_vars>
 

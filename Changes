@@ -32,3 +32,6 @@
 	- Added support for PDL in Coord.pm - more work probably is needed
 0.67 13 Jan 2006
 	- Minor mistake in PDL support
+0.68 22 Jan 2006
+	- deg2turn and turn2deg work on arrays
+	- Merge galfk4 and galfk4r
