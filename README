@@ -63,12 +63,10 @@ Acknowledgment:
 Copyright
 ---------
 
-This module is copyright (C) 1999-2001 Chris Phillips.  All rights
+This module is copyright (C) 1999-2006 Chris Phillips.  All rights
 reserved.  This program is free software; you can redistribute it
 and/or modify it under the same terms as Perl itself.
 
 The J2000/B1950 routines are based on the FORTRAN version of
-SLALIB. As such they are subject to a restrictive usage. In particular
-*THEY CANNOT BE USED IN A COMMERCIAL GAIN*. I hope to eventually
-replace them with similar accuracy routines with a GPL type
-license. The SLALIB license is included.
+SLALIB, which is under the GPL.
+

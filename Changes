@@ -35,3 +35,5 @@
 0.68 22 Jan 2006
 	- deg2turn and turn2deg work on arrays
 	- Merge galfk4 and galfk4r
+0.69 23 Nov 2006
+	- Added mjd2time function

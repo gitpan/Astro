@@ -36,12 +36,12 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.14';
+  $VERSION = '1.15';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
                      mjd2cal cal2mjd mjd2dayno dayno2mjd now2mjd
-                     jd2mjd mjd2jd
+                     jd2mjd mjd2jd mjd2time
                      gst mjd2lst cal2lst dayno2lst rise lst2mjd
                      turn2str deg2str rad2str str2turn str2deg str2rad
                      hms2time time2hms
@@ -1004,6 +1004,21 @@ sub jd2mjd($) {
 
 sub mjd2jd($) {
   return (shift)+2400000.5;
+}
+
+=item B<mjd2ime>
+
+  $str = mjd2time($mjd);
+
+ Converts a Modified Julian day to a formatted string
+    $mjd     Modified Julian day
+    $str     Formatted time
+
+=cut
+
+sub mjd2time($) {
+  my ($dayno, $year, $ut) = mjd2dayno($_[0]);
+  return sprintf("$year %03d/%s", $dayno, turn2str($ut, 'H', 0));
 }
 
 =item B<gst>
