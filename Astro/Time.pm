@@ -36,7 +36,7 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.15';
+  $VERSION = '1.18';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
@@ -44,11 +44,12 @@ BEGIN {
                      jd2mjd mjd2jd mjd2time
                      gst mjd2lst cal2lst dayno2lst rise lst2mjd
                      turn2str deg2str rad2str str2turn str2deg str2rad
-                     hms2time time2hms
+                     hms2time time2hms month2str str2month
                      deg2rad rad2deg turn2rad rad2turn turn2deg deg2turn
                      $PI );
-  @EXPORT_OK   = qw ( daynoOK monthOK dayOK utOK nint $StrSep $StrZero );
-  @EXPORT_FAIL = qw ( @days );
+  @EXPORT_OK   = qw ( daynoOK monthOK dayOK utOK nint $StrSep $StrZero
+		      $Quiet);
+  @EXPORT_FAIL = qw ( @days @MonthShortStr @MonthStr);
 
   use Carp;
   use POSIX qw( fmod floor ceil acos );
@@ -64,6 +65,11 @@ my $debug = 0; # Used for debugging str2turn
 $Quiet = 0;
 
 my @days = (31,28,31,30,31,30,31,31,30,31,30,31);
+
+my @MonthShortStr = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
+		     'Sep', 'Oct', 'Nov', 'Dec');
+my @MonthStr = ('January', 'February', 'March', 'April', 'May', 'June', 'July',
+		'August', 'September','October', 'November', 'December');
 
 # Is the dayno valid?
 sub daynoOK ($$) {
@@ -1009,16 +1015,20 @@ sub mjd2jd($) {
 =item B<mjd2ime>
 
   $str = mjd2time($mjd);
+  $str = mjd2time($mjd, $np);
 
  Converts a Modified Julian day to a formatted string
     $mjd     Modified Julian day
     $str     Formatted time
+    $np      Number of significant digits for fraction of a sec. Default 0
 
 =cut
 
-sub mjd2time($) {
-  my ($dayno, $year, $ut) = mjd2dayno($_[0]);
-  return sprintf("$year %03d/%s", $dayno, turn2str($ut, 'H', 0));
+sub mjd2time($;$) {
+  my ($dayno, $year, $ut) = mjd2dayno(shift);
+  my $np = shift;
+  $np = 0 if (! defined $np);
+  return sprintf("$year %03d/%s", $dayno, turn2str($ut, 'H', $np));
 }
 
 =item B<gst>
@@ -1244,6 +1254,19 @@ sub lst2mjd($$$$;$) {
   }
 
   return($mjd + $delay/$SOLAR_TO_SIDEREAL);
+}
+
+sub month2str($;$) {
+  my ($mon, $long) = @_;
+
+  return undef if (!monthOK($mon));
+
+  if ($long) {
+    return $MonthStr[$mon-1];
+  } else {
+    return $MonthShortStr[$mon-1];
+  }
+
 }
 
 1;

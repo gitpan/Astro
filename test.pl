@@ -101,6 +101,9 @@ $mjd = dayno2mjd($dayno, $year, $ut);
 printf("dayno2mjd:  %03d/$year (%s) ==> MJD %.2f\n", $dayno,
        turn2str($ut,'H',0), $mjd);
 
+my $mstr = month2str($month);
+printf("month2str:  $month is $mstr\n");
+
 $dUT1 = -0.2;
 $gst = gst($mjd, $dUT1);
 printf("gst:        MJD %.2f (dUT1=$dUT1) ==> GMST %s\n", $mjd,
@@ -172,6 +175,8 @@ printf("fk4gal:     %s,%s => %s,%s\n", turn2str($ra,'H',0),
 printf("galfk4:     %s,%s => %s,%s\n", turn2str($l,'D',0),
        turn2str($b,'D',0), turn2str($ra,'H',0), turn2str($dec,'D',0));
 
+
+
 $dec = 0.2;
 ($az, $el) = coord_convert($ra, $dec, 4, 1, $mjd, $longitude, $latitude,
 			   0.00005);
@@ -182,4 +187,5 @@ printf("           Observatory %s, %s\n",
        turn2str($longitude,'D',0,'deg'), turn2str($latitude,'D',0,'deg'));
 printf("             ==> az,el %s, %s\n",
        turn2str($az,'D',0), turn2str($el,'D',0));
+
 

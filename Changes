@@ -37,3 +37,7 @@
 	- Merge galfk4 and galfk4r
 0.69 23 Nov 2006
 	- Added mjd2time function
+0.70 27 Jul 2007
+	- Added month2str and str2month
+0.71 18 Aug 2008
+	- Added $np option to mjd2time
