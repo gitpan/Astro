@@ -151,6 +151,10 @@ printf("xy2azel:    %s,%s ==> %s,%s\n", turn2str($x,'D',0),
 printf("azel2xy:    %s,%s ==> %s,%s\n", turn2str($az,'D',0), 
        turn2str($el,'D',0), turn2str($x,'D',0), turn2str($y,'D',0));
 
+($ha, $dec) = eqazel($az, $el, $latitude,1);
+printf("eqazel:     %s,%s ==> %s,%s (azel->hadec)\n", turn2str($az,'D',0),
+       turn2str($el,'D',0), turn2str($ha,'H',0), turn2str($dec,'D',0));
+
 ($ha, $dec) = eqazel($az, $el, $latitude);
 printf("eqazel:     %s,%s ==> %s,%s (azel->hadec)\n", turn2str($az,'D',0),
        turn2str($el,'D',0), turn2str($ha,'H',0), turn2str($dec,'D',0));

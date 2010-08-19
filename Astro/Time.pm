@@ -1269,6 +1269,17 @@ sub month2str($;$) {
 
 }
 
+sub str2month($) {
+  my $month = uc(shift);
+
+  for (my $i=0; $i<12; $i++) {
+    if ($month eq uc($MonthStr[$i]) || $month eq uc($MonthShortStr[$i])) {
+      return $i+1;
+    }
+  }
+  return undef;
+}
+
 1;
 
 __END__
