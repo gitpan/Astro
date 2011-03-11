@@ -45,3 +45,5 @@
 	- Acutally add str2month
 0.73 19 Aug 2010
      	- Added optional argument to eqazel to allow negative ha and az returned
+0.74 11 Mar 2011
+     	- Added mjd2weekday and mjd2weekdaystr

@@ -104,6 +104,10 @@ printf("dayno2mjd:  %03d/$year (%s) ==> MJD %.2f\n", $dayno,
 my $mstr = month2str($month);
 printf("month2str:  $month is $mstr\n");
 
+my $dow = mjd2weekday($mjd);
+my $dowstr = mjd2weekdaystr($mjd, 1);
+printf("Day of week:$dow   $dowstr\n");
+
 $dUT1 = -0.2;
 $gst = gst($mjd, $dUT1);
 printf("gst:        MJD %.2f (dUT1=$dUT1) ==> GMST %s\n", $mjd,

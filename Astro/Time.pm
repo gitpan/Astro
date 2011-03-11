@@ -36,12 +36,12 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.18';
+  $VERSION = '1.19';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
                      mjd2cal cal2mjd mjd2dayno dayno2mjd now2mjd
-                     jd2mjd mjd2jd mjd2time
+                     jd2mjd mjd2jd mjd2time mjd2weekday mjd2weekdaystr
                      gst mjd2lst cal2lst dayno2lst rise lst2mjd
                      turn2str deg2str rad2str str2turn str2deg str2rad
                      hms2time time2hms month2str str2month
@@ -49,7 +49,7 @@ BEGIN {
                      $PI );
   @EXPORT_OK   = qw ( daynoOK monthOK dayOK utOK nint $StrSep $StrZero
 		      $Quiet);
-  @EXPORT_FAIL = qw ( @days @MonthShortStr @MonthStr);
+  @EXPORT_FAIL = qw ( @days @MonthShortStr @MonthStr @WeekShortStr @WeekStr);
 
   use Carp;
   use POSIX qw( fmod floor ceil acos );
@@ -70,6 +70,10 @@ my @MonthShortStr = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
 		     'Sep', 'Oct', 'Nov', 'Dec');
 my @MonthStr = ('January', 'February', 'March', 'April', 'May', 'June', 'July',
 		'August', 'September','October', 'November', 'December');
+
+my @WeekShortStr = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun');
+my @WeekStr = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
+	       'Saturday', 'Sunday');
 
 # Is the dayno valid?
 sub daynoOK ($$) {
@@ -1266,7 +1270,21 @@ sub month2str($;$) {
   } else {
     return $MonthShortStr[$mon-1];
   }
+}
 
+sub mjd2weekday ($) {
+  my $mjd = int floor ((shift)+0.00001);  # MJD as an int...
+  return ($mjd-5) % 7;
+}
+
+sub mjd2weekdaystr($;$) {
+  my ($mjd, $long) = @_;
+  my $dow = mjd2weekday($mjd);
+  if ($long) {
+    return $WeekStr[$dow];
+  } else {
+    return $WeekShortStr[$dow];
+  }
 }
 
 sub str2month($) {
