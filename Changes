@@ -47,3 +47,5 @@
      	- Added optional argument to eqazel to allow negative ha and az returned
 0.74 11 Mar 2011
      	- Added mjd2weekday and mjd2weekdaystr
+0.75 19 Feb 2012
+     	- Added doco for last few functions added

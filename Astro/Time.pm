@@ -36,7 +36,7 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.19';
+  $VERSION = '1.20';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
@@ -135,6 +135,8 @@ sub nint ($) {
   my ($x) = @_;
   ($x<0.0) ? return(ceil($x-0.5)) : return(floor($x+0.5))
 }
+
+=over 4
 
 =item B<turn2str>
 
@@ -1260,6 +1262,21 @@ sub lst2mjd($$$$;$) {
   return($mjd + $delay/$SOLAR_TO_SIDEREAL);
 }
 
+=item B<month2str>
+
+  $monthstr = month2str($month);
+  $longmonthstr = month2str($month,1);
+
+  This routine returns the name of the given month (as a number 1..12), 
+  where 1 is January. The default is a 3 character version of the month
+  ('Jan', 'Feb', etc) in the second form the full month is returned
+
+
+  The required inputs are :
+    $month      - The month in question with 1 == January.
+
+=cut
+
 sub month2str($;$) {
   my ($mon, $long) = @_;
 
@@ -1272,10 +1289,35 @@ sub month2str($;$) {
   }
 }
 
+=item B<mjd2weekday>
+
+  $weekday = mjd2weekday($mjd);
+
+ Returns the weekday correspondig to the given MJD.
+ 0 ==> Monday. May not work for historical dates.
+
+    $mjd     Modified Julian day (JD-2400000.5)
+
+=cut
+
+
+
 sub mjd2weekday ($) {
   my $mjd = int floor ((shift)+0.00001);  # MJD as an int...
   return ($mjd-5) % 7;
 }
+
+=item B<mjd2weekdaystr>
+
+  $weekdaystr = mjd2weekdaystr($mjd);
+
+ Returns the name of the weekday correspondig to the given MJD.
+ May not work for historical dates.
+
+    $mjd     Modified Julian day (JD-2400000.5)
+
+=cut
+
 
 sub mjd2weekdaystr($;$) {
   my ($mjd, $long) = @_;
@@ -1286,6 +1328,20 @@ sub mjd2weekdaystr($;$) {
     return $WeekShortStr[$dow];
   }
 }
+
+=item B<str2month>
+
+  $month = month2str($monthstr);
+
+  Given the name of a month (in English), this routine returns the
+  an integer between 1 and 12, where 1 is January. Full month names of
+  3 character abbreviations are acceptable. Minumum matching (e.g. "Marc")
+  is not supported.
+
+  The required inputs are :
+    $month      - Name of the month ('Jan', 'January', 'Feb', 'February' etc)
+
+=cut
 
 sub str2month($) {
   my $month = uc(shift);
