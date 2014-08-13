@@ -136,6 +136,9 @@ printf("lst2mjd:    LST %s on $dayno/$year \@ %s ==> MJD %.6f\n",
 
 $Astro::Time::StrSep = ':';
 
+my $time = mjd2epoch($mjd);
+printf("mjd2epoch:  MJD %.6f is Unix Epoch %d\n", $mjd, $time);
+
 $ra = 0.5356;
 $dec = 0.1025;
 

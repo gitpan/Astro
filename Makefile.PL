@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME      => 'Astro',
-    VERSION   => '0.75',
+    VERSION   => '0.76',
     DISTNAME  => 'Astro',
     dist      => { COMPRESS => 'gzip -9f', SUFFIX => 'gz'}
 );

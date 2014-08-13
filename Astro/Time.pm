@@ -36,11 +36,11 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.20';
+  $VERSION = '1.21';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
-                     mjd2cal cal2mjd mjd2dayno dayno2mjd now2mjd
+                     mjd2cal cal2mjd mjd2dayno dayno2mjd now2mjd mjd2epoch
                      jd2mjd mjd2jd mjd2time mjd2weekday mjd2weekdaystr
                      gst mjd2lst cal2lst dayno2lst rise lst2mjd
                      turn2str deg2str rad2str str2turn str2deg str2rad
@@ -1018,7 +1018,7 @@ sub mjd2jd($) {
   return (shift)+2400000.5;
 }
 
-=item B<mjd2ime>
+=item B<mjd2time>
 
   $str = mjd2time($mjd);
   $str = mjd2time($mjd, $np);
@@ -1035,6 +1035,23 @@ sub mjd2time($;$) {
   my $np = shift;
   $np = 0 if (! defined $np);
   return sprintf("$year %03d/%s", $dayno, turn2str($ut, 'H', $np));
+}
+
+=item B<mjd2epoch>
+
+  $time = mjd2epoch($mjd);
+
+ Converts a Modified Julian day to unix Epoch (seconds sinve 1 Jan 1970)
+ Rounded to the nearest second
+    $mjd     Modified Julian day
+    $tie     Seconds since 1 Jan 1970
+
+=cut
+
+sub mjd2epoch($) {
+  my $mjd = shift;
+  my $epoch = ($mjd - 40587)*24*60*60;
+  return int($epoch + $epoch/abs($epoch*2)); # Work even if epoch is negative
 }
 
 =item B<gst>
