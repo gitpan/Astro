@@ -36,12 +36,12 @@ BEGIN {
   use Exporter ();
   use vars qw($VERSION @ISA @EXPORT @EXPORT_OK @EXPORT_FAIL
               $PI $StrSep $StrZero $Quiet );
-  $VERSION = '1.21';
+  $VERSION = '1.22';
   @ISA = qw(Exporter);
 
   @EXPORT      = qw( cal2dayno dayno2cal leap yesterday tomorrow
                      mjd2cal cal2mjd mjd2dayno dayno2mjd now2mjd mjd2epoch
-                     jd2mjd mjd2jd mjd2time mjd2weekday mjd2weekdaystr
+                     jd2mjd mjd2jd mjd2time mjd2vextime mjd2weekday mjd2weekdaystr
                      gst mjd2lst cal2lst dayno2lst rise lst2mjd
                      turn2str deg2str rad2str str2turn str2deg str2rad
                      hms2time time2hms month2str str2month
@@ -1035,6 +1035,25 @@ sub mjd2time($;$) {
   my $np = shift;
   $np = 0 if (! defined $np);
   return sprintf("$year %03d/%s", $dayno, turn2str($ut, 'H', $np));
+}
+
+=item B<mjd2vextime>
+
+  $str = mjd2vextime($mjd);
+  $str = mjd2vextime($mjd, $np);
+
+ Converts a Modified Julian day to a vex formatted string
+    $mjd     Modified Julian day
+    $str     Formatted time
+    $np      Number of significant digits for fraction of a sec. Default 0
+
+=cut
+
+sub mjd2vextime($;$) {
+  my ($dayno, $year, $ut) = mjd2dayno(shift);
+  my $np = shift;
+  $np = 0 if (! defined $np);
+  return sprintf("%dy%03dd%s", $year, $dayno, turn2str($ut, 'H', $np, 'hms'));
 }
 
 =item B<mjd2epoch>
